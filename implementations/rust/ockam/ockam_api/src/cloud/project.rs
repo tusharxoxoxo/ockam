@@ -12,7 +12,7 @@ use ockam_core::{async_trait, Result};
 use ockam_multiaddr::MultiAddr;
 use ockam_node::{tokio, Context};
 
-use crate::cloud::addon::ConfluentConfigResponse;
+use crate::cloud::addon::KafkaConfigResponse;
 use crate::cloud::operation::Operations;
 use crate::cloud::share::ShareScope;
 use crate::cloud::{Controller, ORCHESTRATOR_AWAIT_TIMEOUT};
@@ -60,7 +60,7 @@ pub struct Project {
 
     #[cbor(n(12))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub confluent_config: Option<ConfluentConfigResponse>,
+    pub confluent_config: Option<KafkaConfigResponse>,
 
     #[cbor(n(13))]
     pub version: Option<String>,
@@ -446,7 +446,7 @@ mod tests {
                 authority_identity: bool::arbitrary(g)
                     .then(|| hex::encode(<Vec<u8>>::arbitrary(g))),
                 okta_config: bool::arbitrary(g).then(|| OktaConfig::arbitrary(g)),
-                confluent_config: bool::arbitrary(g).then(|| ConfluentConfigResponse::arbitrary(g)),
+                confluent_config: bool::arbitrary(g).then(|| KafkaConfigResponse::arbitrary(g)),
                 version: Some(String::arbitrary(g)),
                 running: bool::arbitrary(g).then(|| bool::arbitrary(g)),
                 operation_id: bool::arbitrary(g).then(|| String::arbitrary(g)),
