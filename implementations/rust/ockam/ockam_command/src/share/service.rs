@@ -35,6 +35,8 @@ pub struct ServiceCreateCommand {
     pub shared_node_route: String,
 
     pub enrollment_ticket: String,
+    pub name: String,
+    pub scheme: Option<String>,
 
     #[arg(long, short = 'x')]
     pub expires_at: Option<String>,
@@ -61,6 +63,8 @@ impl From<ServiceCreateCommand> for CreateServiceInvitation {
             shared_node_route,
 
             enrollment_ticket,
+            scheme,
+            name,
             ..
         } = val;
         Self {
@@ -76,6 +80,8 @@ impl From<ServiceCreateCommand> for CreateServiceInvitation {
             shared_node_route,
 
             enrollment_ticket,
+            scheme,
+            name: Some(name),
         }
     }
 }
@@ -110,6 +116,8 @@ async fn run_impl(
                 cmd.shared_node_identity,
                 cmd.shared_node_route,
                 cmd.enrollment_ticket,
+                cmd.scheme,
+                cmd.name,
             )
             .await?;
         *is_finished.lock().await = true;

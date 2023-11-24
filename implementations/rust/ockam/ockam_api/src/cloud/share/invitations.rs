@@ -40,6 +40,8 @@ pub trait Invitations {
         shared_node_identity: Identifier,
         shared_node_route: String,
         enrollment_ticket: String,
+        scheme: Option<String>,
+        name: String,
     ) -> miette::Result<SentInvitation>;
 
     async fn accept_invitation(
@@ -106,6 +108,8 @@ impl Invitations for Controller {
         shared_node_identity: Identifier,
         shared_node_route: String,
         enrollment_ticket: String,
+        scheme: Option<String>,
+        name: String,
     ) -> miette::Result<SentInvitation> {
         trace!(project_id = %project_id, "creating service invitation");
         let req_body = CreateServiceInvitation {
@@ -119,7 +123,10 @@ impl Invitations for Controller {
             shared_node_identity,
             shared_node_route,
             enrollment_ticket,
+            scheme,
+            name: Some(name),
         };
+        trace!(?req_body, "sending invitation");
         let req = Request::post("/v0/invites/service").body(req_body);
         self.secure_client
             .ask(ctx, API_SERVICE, req)

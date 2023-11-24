@@ -90,6 +90,16 @@ impl PartialEq for InvitationWithAccess {
 impl Eq for InvitationWithAccess {}
 
 #[derive(Clone, Debug, Decode, Encode, Deserialize, Serialize, PartialEq)]
+#[cbor(index_only)]
+#[rustfmt::skip]
+pub enum InvitationStatus {
+    #[n(0)] Pending = 0,
+    #[n(1)] Accepted = 1,
+    #[n(2)] Denied = 2,
+    #[n(3)] Revoked = 3,
+}
+
+#[derive(Clone, Debug, Decode, Encode, Deserialize, Serialize, PartialEq)]
 #[cbor(map)]
 #[rustfmt::skip]
 pub struct ReceivedInvitation {
@@ -100,6 +110,11 @@ pub struct ReceivedInvitation {
     #[n(5)] pub scope: ShareScope,
     #[n(6)] pub target_id: String,
     #[n(7)] pub ignored: bool,
+    #[n(8)] pub picture_url: Option<String>,
+    #[n(9)] pub owner_name: Option<String>,
+    #[n(10)] pub status: InvitationStatus,
+    #[n(11)] pub scheme: Option<String>,
+    #[n(12)] pub name: Option<String>,
 }
 
 impl ReceivedInvitation {
@@ -120,6 +135,8 @@ pub struct SentInvitation {
     #[n(6)] pub remaining_uses: usize,
     #[n(7)] pub scope: ShareScope,
     #[n(8)] pub target_id: String,
+    #[n(9)] pub recipient_id: usize,
+    #[n(10)] pub access_details: Option<ServiceAccessDetails>,
 }
 
 impl SentInvitation {
@@ -142,7 +159,7 @@ fn is_expired(date: &str) -> ockam_core::Result<bool> {
     Ok(date < now)
 }
 
-#[derive(Clone, Debug, Decode, Encode, Deserialize, Serialize)]
+#[derive(Clone, Debug, Decode, Encode, Deserialize, Serialize, PartialEq)]
 #[cbor(map)]
 #[rustfmt::skip]
 pub struct ServiceAccessDetails {
@@ -153,6 +170,7 @@ pub struct ServiceAccessDetails {
     #[n(5)] pub shared_node_identity: Identifier,
     #[n(6)] pub shared_node_route: String,
     #[n(7)] pub enrollment_ticket: String, // hex-encoded as with CLI output/input
+    #[n(8)] pub scheme: Option<String>,
 }
 
 impl ServiceAccessDetails {

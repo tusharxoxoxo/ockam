@@ -4,6 +4,7 @@ import SwiftUI
 // to inherit a button with the style in macOS 13
 struct ClickableMenuEntry: View {
     @State private var isHovered = false
+    @State var selected: Bool = false
 
     @State var text: String
     @State var clicked: String = ""
@@ -26,7 +27,7 @@ struct ClickableMenuEntry: View {
         }
         .padding(.horizontal, HorizontalSpacingUnit)
         .frame(height: VerticalSpacingUnit*3)
-        .background(isHovered ? Color.gray.opacity(0.25) : Color.clear)
+        .background((isHovered || selected) ? Color.gray.opacity(0.25) : Color.clear)
         .buttonStyle(PlainButtonStyle())
         .cornerRadius(4)
         .contentShape(Rectangle())

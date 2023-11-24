@@ -87,7 +87,7 @@ pub struct AcceptedInvitations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ockam_api::cloud::share::{RoleInShare, ShareScope};
+    use ockam_api::cloud::share::{InvitationStatus, RoleInShare, ShareScope};
 
     #[test]
     fn test_replace_by() {
@@ -105,6 +105,8 @@ mod tests {
                 remaining_uses: 0,
                 scope: ShareScope::Project,
                 target_id: "target_id".to_string(),
+                recipient_id: 0,
+                access_details: None,
             }]),
             received: Some(vec![
                 ReceivedInvitation {
@@ -115,6 +117,11 @@ mod tests {
                     scope: ShareScope::Project,
                     target_id: "target_id".to_string(),
                     ignored: false,
+                    owner_name: Some("owner_name".to_string()),
+                    picture_url: Some("picture_url".to_string()),
+                    status: InvitationStatus::Accepted,
+                    scheme: Some("http".to_string()),
+                    name: Some("name".to_string()),
                 },
                 ReceivedInvitation {
                     id: "id2".to_string(),
@@ -124,6 +131,11 @@ mod tests {
                     scope: ShareScope::Project,
                     target_id: "target_id".to_string(),
                     ignored: true,
+                    owner_name: Some("owner_name".to_string()),
+                    picture_url: Some("picture_url".to_string()),
+                    status: InvitationStatus::Accepted,
+                    scheme: Some("http".to_string()),
+                    name: Some("name".to_string()),
                 },
             ]),
             accepted: Some(vec![
@@ -136,6 +148,11 @@ mod tests {
                         scope: ShareScope::Project,
                         target_id: "target_id".to_string(),
                         ignored: false,
+                        owner_name: Some("owner_name".to_string()),
+                        picture_url: Some("picture_url".to_string()),
+                        status: InvitationStatus::Accepted,
+                        scheme: Some("http".to_string()),
+                        name: Some("name".to_string()),
                     },
                     service_access_details: None,
                 },
@@ -148,6 +165,11 @@ mod tests {
                         scope: ShareScope::Project,
                         target_id: "target_id".to_string(),
                         ignored: true,
+                        owner_name: Some("owner_name".to_string()),
+                        picture_url: Some("picture_url".to_string()),
+                        status: InvitationStatus::Accepted,
+                        scheme: Some("http".to_string()),
+                        name: Some("name".to_string()),
                     },
                     service_access_details: None,
                 },

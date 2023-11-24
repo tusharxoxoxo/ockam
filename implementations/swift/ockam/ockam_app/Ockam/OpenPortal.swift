@@ -1,46 +1,55 @@
 import SwiftUI
-
 struct OpenPortal: View {
     @Environment(\.presentationMode) var presentationMode: Binding<PresentationMode>
+    let UrlSchemes = [
+        "http", "https", "ssh", "git", "rsync", "ftp", "sftp",
+        "redis", "jdbc", "mongodb", "postgresql", "mysql", "mysqlx"
+    ]
     @FocusState private var isFocused: Bool
 
     @State var isProcessing = false
     @State var errorMessage = ""
     @State var serviceName = ""
+    @State var serviceScheme = ""
     @State var serviceAddress = "localhost:10000"
-
     var body: some View {
         VStack(alignment: .leading) {
-            Grid(alignment: .leading) {
-                GridRow {
-                    VStack(alignment: .leading) {
-                        Text(verbatim: "Name")
-                        Text(verbatim: "A name for your portal").font(.caption)
-                    }
-                    .padding(.top, 6)
-                    TextField("Portal name", text: $serviceName)
-                        .focused($isFocused)
-                        .onAppear(perform: {
-                            isFocused = true
-                        })
-                }
-                GridRow {
-                    VStack(alignment: .leading) {
-                        Text(verbatim: "Address")
-                        Text(verbatim: "The tcp address where your service is running").font(.caption)
-                    }
-                    .padding(.top, 6)
-                    TextField("Address", text: $serviceAddress)
-                }
+            Form {
+                TextField("Name", text: $serviceName)
+                    .focused($isFocused)
+                    .onAppear(perform: {
+                        //give focus to the text field on open
+                        isFocused = true
+                    })
+                Text("A name for your portal")
+                    .font(.caption)
+                    .foregroundStyle(OckamSecondaryTextColor)
+
+                TextField("Address", text: $serviceAddress)
+                Text("IP address where your service is running")
+                    .font(.caption)
+                    .foregroundStyle(OckamSecondaryTextColor)
+
+                Autocomplete(
+                    suggestions: UrlSchemes,
+                    label: "URL Scheme",
+                    value: $serviceScheme
+                )
+                Text("URL scheme of the service, like http or ssh")
+                    .font(.caption)
+                    .foregroundStyle(OckamSecondaryTextColor)
             }
-            .padding(10)
+            .padding(.vertical, VerticalSpacingUnit*2)
+            .padding(.horizontal, VerticalSpacingUnit*2)
 
-            //use opacity to pre-allocate the space for this component
-            Text("Error: \(errorMessage)")
-                .opacity(errorMessage.isEmpty ? 0 : 1)
-                .foregroundColor(.red)
-                .padding(10)
+            if !errorMessage.isEmpty {
+                Text("Error: \(errorMessage)")
+                    .foregroundColor(.red)
+                    .padding(.vertical, VerticalSpacingUnit)
+                    .padding(.horizontal, VerticalSpacingUnit)
+            }
 
+            Spacer()
             HStack {
                 Spacer()
                 Button(
@@ -53,17 +62,17 @@ struct OpenPortal: View {
                 Button(
                     action: {
                         self.errorMessage = ""
-
                         isProcessing = true
                         let error = create_local_service(
                             self.serviceName,
+                            self.serviceScheme == "" ? nil : self.serviceScheme,
                             self.serviceAddress
                         )
                         isProcessing = false
-
                         if error == nil {
                             self.errorMessage = ""
                             self.serviceName = ""
+                            self.serviceScheme = ""
                             self.serviceAddress = "localhost:10000"
                             self.closeWindow()
                         } else {
@@ -80,18 +89,15 @@ struct OpenPortal: View {
             }
             .background(OckamDarkerBackground)
         }
-        .frame(width: 600)
+        .frame(width: 400)
     }
-
     func closeWindow() {
         self.presentationMode.wrappedValue.dismiss()
     }
-
     func canCreateService() -> Bool {
         return !self.serviceName.isEmpty && !self.serviceAddress.isEmpty
     }
 }
-
 struct CreateServiceView_Previews: PreviewProvider {
     static var previews: some View {
         OpenPortal()

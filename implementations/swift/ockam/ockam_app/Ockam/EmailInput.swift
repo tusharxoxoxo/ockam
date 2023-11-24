@@ -10,13 +10,16 @@ struct EmailListView: View {
     var body: some View {
         VStack(alignment: .leading) {
             HStack {
-                TextField("Type an email address and then press enter to add it to the invitation list.", text: $emailInput)
-                    .onSubmit {
-                        if validateEmail(email: self.emailInput) {
-                            self.emailList.insert(self.emailInput)
-                            self.emailInput = ""
-                        }
+                TextField(
+                    "email@example.com",
+                    text: $emailInput
+                )
+                .onSubmit {
+                    if validateEmail(email: self.emailInput) {
+                        self.emailList.insert(self.emailInput)
+                        self.emailInput = ""
                     }
+                }
 
                 Button(action: {
                     self.emailList.insert(self.emailInput)
@@ -28,6 +31,9 @@ struct EmailListView: View {
                 .padding([.leading, .trailing], 10)
                 .disabled(!validateEmail(email: emailInput))
             }
+            Text("Type an email address and then press enter to add it to the invitation list.")
+                .font(.caption)
+                .foregroundStyle(OckamSecondaryTextColor)
             List {
                 ForEach(Array(emailList), id: \.self) { email in
                     HStack {

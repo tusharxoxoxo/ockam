@@ -3,19 +3,29 @@ use tracing::{debug, error};
 #[cfg(test)]
 use crate::incoming_services::PersistentIncomingService;
 use crate::state::{AppState, ModelState};
-use ockam_api::nodes::models::portal::OutletStatus;
+use ockam_core::Address;
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PersistentLocalService {
+    pub socket_addr: SocketAddr,
+    pub worker_addr: Address,
+    pub alias: String,
+    pub scheme: Option<String>,
+}
 
 impl ModelState {
-    pub fn add_tcp_outlet(&mut self, status: OutletStatus) {
-        self.tcp_outlets.push(status);
+    pub fn add_local_service(&mut self, status: PersistentLocalService) {
+        self.local_services.push(status);
     }
 
-    pub fn delete_tcp_outlet(&mut self, alias: &str) {
-        self.tcp_outlets.retain(|x| x.alias != alias);
+    pub fn delete_local_service(&mut self, alias: &str) {
+        self.local_services.retain(|x| x.alias != alias);
     }
 
-    pub fn get_tcp_outlets(&self) -> &[OutletStatus] {
-        &self.tcp_outlets
+    pub fn get_local_services(&self) -> &[PersistentLocalService] {
+        &self.local_services
     }
 
     #[cfg(test)]
@@ -33,21 +43,21 @@ impl AppState {
         }
         let node_manager = self.node_manager().await;
         let context = self.context();
-        for tcp_outlet in self.model(|m| m.get_tcp_outlets().to_vec()).await {
-            debug!(worker_addr = %tcp_outlet.worker_addr, "Restoring outlet");
+        for local_service in self.model(|m| m.get_local_services().to_vec()).await {
+            debug!(worker_addr = %local_service.worker_addr, "Restoring outlet");
             let _ = node_manager
                 .create_outlet(
                     &context,
-                    tcp_outlet.socket_addr,
-                    tcp_outlet.worker_addr.clone(),
-                    Some(tcp_outlet.alias.clone()),
+                    local_service.socket_addr,
+                    local_service.worker_addr.clone(),
+                    Some(local_service.alias.clone()),
                     true,
                 )
                 .await
                 .map_err(|e| {
                     error!(
                         ?e,
-                        worker_addr = %tcp_outlet.worker_addr,
+                        worker_addr = %local_service.worker_addr,
                         "Failed to restore outlet"
                     );
                 });

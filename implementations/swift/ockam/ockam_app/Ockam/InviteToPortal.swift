@@ -10,15 +10,15 @@ struct InviteToPortal: View {
     @State var errorMessage = ""
 
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: VerticalSpacingUnit) {
             EmailListView(emailList: $emails)
 
-            //use opacity to pre-allocate the space for this component
-            Text("Error: \(errorMessage)")
-                .opacity(errorMessage.isEmpty ? 0 : 1)
-                .foregroundColor(.red)
+            if !errorMessage.isEmpty {
+                Text("Error: \(errorMessage)")
+                    .foregroundColor(.red)
+            }
 
-            HStack {
+            HStack(spacing: HorizontalSpacingUnit) {
                 Spacer()
                 Button(
                     action: {
@@ -55,7 +55,7 @@ struct InviteToPortal: View {
             }
             .background(OckamDarkerBackground)
         }
-        .frame(width: 600)
+        .frame(width: 400)
     }
 
     func closeWindow() {

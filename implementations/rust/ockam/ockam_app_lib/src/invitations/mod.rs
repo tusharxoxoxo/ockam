@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use tracing::{debug, warn};
+use tracing::debug;
 
 use ockam_api::cli_state::enrollments::EnrollmentTicket;
 use ockam_api::cloud::share::CreateServiceInvitation;
@@ -20,20 +20,14 @@ impl AppState {
     ) -> crate::Result<CreateServiceInvitation> {
         debug!(%outlet_socket_addr, %recipient_email, "preparing payload to send invitation");
         let cli_state = self.state().await;
-        let service_route = self
-            .model(|m| {
-                if m.tcp_outlets.is_empty() {
-                    warn!("no outlets found in the App state");
-                }
-                m.tcp_outlets
-                    .iter()
-                    .find(|o| o.socket_addr == *outlet_socket_addr)
-                    .map(|o| o.worker_address())
-            })
+        let service = self
+            .local_services()
             .await
+            .into_iter()
+            .find(|o| o.socket_addr == *outlet_socket_addr)
             .ok_or::<Error>(
                 format!("The outlet {outlet_socket_addr} wasn't found in the App state").into(),
-            )??;
+            )?;
         let project = cli_state.get_default_project().await?;
 
         Ok(CreateServiceInvitation::new(
@@ -42,8 +36,10 @@ impl AppState {
             project.name(),
             recipient_email.to_string(),
             NODE_NAME.to_string(),
-            service_route.to_string(),
+            service.worker_addr.to_string(),
             enrollment_ticket,
+            service.alias,
+            service.scheme,
         )
         .await?)
     }

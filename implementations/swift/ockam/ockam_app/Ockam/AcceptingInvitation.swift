@@ -72,12 +72,13 @@ struct AcceptingInvitation: View {
             } else if let (group, invitation) = self.invitation {
                 HStack {
                     Spacer()
-                    ProfilePicture(url: group.imageUrl, size: 64)
+                    ProfilePicture(url: group.imageUrl)
                     VStack(alignment: .leading) {
                         if let name = group.name {
                             Text(verbatim: name)
                         }
                         Text(verbatim: group.email)
+                            .foregroundStyle(OckamSecondaryTextColor)
                     }
                     Spacer()
                 }
@@ -136,12 +137,13 @@ struct AcceptingInvitation: View {
             } else if let (group, service) = self.service {
                 HStack {
                     Spacer()
-                    ProfilePicture(url: group.imageUrl, size: 64)
+                    ProfilePicture(url: group.imageUrl)
                     VStack(alignment: .leading) {
                         if let name = group.name {
                             Text(verbatim: name)
                         }
                         Text(verbatim: group.email)
+                            .foregroundStyle(OckamSecondaryTextColor)
                     }
                     Spacer()
                 }
