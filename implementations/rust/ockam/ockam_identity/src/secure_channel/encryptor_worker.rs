@@ -18,8 +18,8 @@ use crate::secure_channel::api::{EncryptionRequest, EncryptionResponse};
 use crate::secure_channel::encryptor::Encryptor;
 use crate::utils::now;
 use crate::{
-    ChangeHistoryRepository, Identifier, IdentityError, PlaintextPayloadMessage,
-    RefreshCredentialsMessage, SecureChannelMessage, TimestampInSeconds, TrustContext,
+    ChangeHistoryRepository, CredentialsRetriever, Identifier, IdentityError,
+    PlaintextPayloadMessage, RefreshCredentialsMessage, SecureChannelMessage, TimestampInSeconds,
 };
 
 pub(crate) struct EncryptorWorker {
@@ -39,9 +39,8 @@ pub(crate) struct EncryptorWorker {
     /// for a new one
     refresh_credential_time_gap: Duration,
     credential_refresh_event: Option<DelayedEvent<()>>,
-    // TODO: Should be CredentialsRetriever
-    trust_context: Option<TrustContext>,
 
+    credential_retriever: Option<Arc<dyn CredentialsRetriever>>,
     should_send_close: Arc<AtomicBool>,
 }
 
@@ -57,7 +56,7 @@ impl EncryptorWorker {
         min_credential_expiration: Option<TimestampInSeconds>,
         min_credential_refresh_interval: Duration,
         refresh_credential_time_gap: Duration,
-        trust_context: Option<TrustContext>,
+        credential_retriever: Option<Arc<dyn CredentialsRetriever>>,
         should_send_close: Arc<AtomicBool>,
     ) -> Self {
         Self {
@@ -71,7 +70,7 @@ impl EncryptorWorker {
             min_credential_refresh_interval,
             refresh_credential_time_gap,
             credential_refresh_event: None,
-            trust_context,
+            credential_retriever,
             should_send_close,
         }
     }
@@ -193,20 +192,12 @@ impl EncryptorWorker {
                 )
             })?;
 
-        let credential = if let Some(trust_context) = &self.trust_context {
-            match trust_context.get_credential(ctx, &self.my_identifier).await {
-                Ok(Some(credential)) => credential,
-                // TODO: remove the duplication with the next case when reworking the trust contexts
-                Ok(None) => {
-                    info!(
-                        "Credentials refresh failed for {} and is rescheduled in {} seconds",
-                        self.addresses.encryptor,
-                        self.min_credential_refresh_interval.as_secs()
-                    );
-                    // Will schedule a refresh in self.min_credential_refresh_interval
-                    self.schedule_credentials_refresh(ctx, true).await?;
-                    return Err(IdentityError::NoCredentialsSet.into());
-                }
+        let credential = if let Some(credential_retriever) = &self.credential_retriever {
+            match credential_retriever
+                .retrieve(ctx, &self.my_identifier)
+                .await
+            {
+                Ok(credential) => credential,
                 Err(err) => {
                     info!(
                         "Credentials refresh failed for {} and is rescheduled in {} seconds",

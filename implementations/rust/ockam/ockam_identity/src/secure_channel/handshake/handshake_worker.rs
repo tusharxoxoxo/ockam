@@ -27,8 +27,8 @@ use crate::secure_channel::handshake::initiator_state_machine::InitiatorStateMac
 use crate::secure_channel::handshake::responder_state_machine::ResponderStateMachine;
 use crate::secure_channel::{Addresses, Role};
 use crate::{
-    ChangeHistoryRepository, IdentityError, SecureChannelPurposeKey, SecureChannelRegistryEntry,
-    SecureChannels, TimestampInSeconds, TrustContext, TrustPolicy,
+    ChangeHistoryRepository, CredentialsRetriever, IdentityError, SecureChannelPurposeKey,
+    SecureChannelRegistryEntry, SecureChannels, TimestampInSeconds, TrustPolicy,
 };
 
 /// This struct implements a Worker receiving and sending messages
@@ -45,7 +45,8 @@ pub(crate) struct HandshakeWorker {
     min_credential_refresh_interval: Duration,
     min_credential_expiration: Option<TimestampInSeconds>,
     refresh_credential_time_gap: Duration,
-    trust_context: Option<TrustContext>,
+    authority: Option<Identifier>,
+    credential_retriever: Option<Arc<dyn CredentialsRetriever>>,
     change_history_repository: Arc<dyn ChangeHistoryRepository>,
     should_send_close: Arc<AtomicBool>,
 }
@@ -167,7 +168,8 @@ impl HandshakeWorker {
         credentials: Vec<CredentialAndPurposeKey>,
         min_credential_refresh_interval: Duration,
         refresh_credential_time_gap: Duration,
-        trust_context: Option<TrustContext>,
+        credential_retriever: Option<Arc<dyn CredentialsRetriever>>,
+        authority: Option<Identifier>,
         remote_route: Option<Route>,
         timeout: Option<Duration>,
         role: Role,
@@ -193,7 +195,7 @@ impl HandshakeWorker {
                     purpose_key,
                     credentials,
                     trust_policy,
-                    trust_context.clone(),
+                    authority.clone(),
                 )
                 .await?,
             )
@@ -206,7 +208,7 @@ impl HandshakeWorker {
                     purpose_key,
                     credentials,
                     trust_policy,
-                    trust_context.clone(),
+                    authority.clone(),
                 )
                 .await?,
             )
@@ -231,7 +233,8 @@ impl HandshakeWorker {
             min_credential_refresh_interval,
             min_credential_expiration,
             refresh_credential_time_gap,
-            trust_context,
+            authority,
+            credential_retriever,
             change_history_repository: identities.change_history_repository(),
             should_send_close: Arc::new(AtomicBool::new(true)),
         };
@@ -316,7 +319,7 @@ impl HandshakeWorker {
         // create a decryptor to delegate the processing of all messages after the handshake
         let decryptor = DecryptorHandler::new(
             self.secure_channels.identities.clone(),
-            self.trust_context.clone(),
+            self.authority.clone(),
             self.role.str(),
             self.addresses.clone(),
             handshake_results.handshake_keys.decryption_key,
@@ -338,10 +341,11 @@ impl HandshakeWorker {
                 ),
                 self.identifier.clone(),
                 self.change_history_repository.clone(),
+                // TODO: Credentials options could be combined into one struct
                 self.min_credential_expiration,
                 self.min_credential_refresh_interval,
                 self.refresh_credential_time_gap,
-                self.trust_context.clone(),
+                self.credential_retriever.clone(),
                 self.should_send_close.clone(),
             );
 

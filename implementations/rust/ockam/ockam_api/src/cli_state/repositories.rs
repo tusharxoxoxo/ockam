@@ -12,7 +12,6 @@ use crate::cli_state::CliState;
 use crate::cli_state::{EnrollmentsRepository, EnrollmentsSqlxDatabase};
 use crate::cli_state::{ProjectsRepository, ProjectsSqlxDatabase};
 use crate::cli_state::{SpacesRepository, SpacesSqlxDatabase};
-use crate::cli_state::{TrustContextsRepository, TrustContextsSqlxDatabase};
 use crate::cli_state::{UsersRepository, UsersSqlxDatabase};
 
 /// These functions create repository implementations to access data
@@ -66,15 +65,5 @@ impl CliState {
 
     pub(super) async fn users_repository(&self) -> Result<Arc<dyn UsersRepository>> {
         Ok(Arc::new(UsersSqlxDatabase::new(self.database())))
-    }
-
-    pub(super) async fn credentials_repository(&self) -> Result<Arc<dyn CredentialsRepository>> {
-        Ok(Arc::new(CredentialsSqlxDatabase::new(self.database())))
-    }
-
-    pub(super) async fn trust_contexts_repository(
-        &self,
-    ) -> Result<Arc<dyn TrustContextsRepository>> {
-        Ok(Arc::new(TrustContextsSqlxDatabase::new(self.database())))
     }
 }

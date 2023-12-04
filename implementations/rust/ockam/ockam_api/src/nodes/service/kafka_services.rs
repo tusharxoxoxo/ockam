@@ -183,7 +183,7 @@ impl InMemoryNode {
             OutletManagerService::create(
                 context,
                 self.secure_channels.clone(),
-                self.trust_context()?.id(),
+                self.authority.clone().unwrap(), // FIXME
                 default_secure_channel_listener_flow_control_id,
             )
             .await?;
@@ -198,17 +198,17 @@ impl InMemoryNode {
         )
         .await?;
 
-        let trust_context_id;
+        let authority_id;
         let secure_channels;
         {
-            trust_context_id = self.trust_context()?.id().to_string();
+            authority_id = self.authority.clone().unwrap(); // FIXME
             secure_channels = self.secure_channels.clone();
         }
 
         let secure_channel_controller = KafkaSecureChannelControllerImpl::new(
             secure_channels,
             ConsumerNodeAddr::Direct(consumer_route.clone()),
-            trust_context_id,
+            authority_id,
         );
 
         let inlet_controller = KafkaInletController::new(
@@ -274,10 +274,10 @@ impl InMemoryNode {
             outlet_node_multiaddr.to_string()
         );
 
-        let trust_context_id;
+        let authority_id;
         let secure_channels;
         {
-            trust_context_id = self.trust_context()?.id().to_string();
+            authority_id = self.authority.clone().unwrap(); // FIXME
             secure_channels = self.secure_channels.clone();
 
             if let Some(project) = outlet_node_multiaddr.first().and_then(|value| {
@@ -302,7 +302,7 @@ impl InMemoryNode {
         let secure_channel_controller = KafkaSecureChannelControllerImpl::new(
             secure_channels,
             ConsumerNodeAddr::Relay(outlet_node_multiaddr.clone()),
-            trust_context_id,
+            authority_id,
         );
 
         let inlet_controller = KafkaInletController::new(
@@ -374,7 +374,7 @@ impl NodeManager {
             OutletManagerService::create(
                 context,
                 self.secure_channels.clone(),
-                self.trust_context()?.id(),
+                self.authority.clone().unwrap(), // FIXME
                 default_secure_channel_listener_flow_control_id,
             )
             .await?;

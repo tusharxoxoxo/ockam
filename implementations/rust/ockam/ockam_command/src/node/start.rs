@@ -166,13 +166,8 @@ async fn run_node(
         &None,         // Use the default identity
         &None,         // Use the default vault
         &node_address, // The selected node api address
-        None,          // No project information available
-        None,          // No trusted identities
-        None,          // "
         None,          // Launch config
-        None,          // Authority Identity
-        None,          // Credential
-        None,          // Trust Context
+        None,          // No project information available
         true,          // Restarted nodes will log to files
     )
     .await?;

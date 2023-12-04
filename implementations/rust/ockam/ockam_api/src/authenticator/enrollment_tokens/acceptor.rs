@@ -1,8 +1,5 @@
 use minicbor::Decoder;
 use ockam::identity::utils::now;
-use ockam::identity::OneTimeCode;
-use ockam::identity::{secure_channel_required, TRUST_CONTEXT_ID};
-use ockam::identity::{AttributesEntry, IdentityAttributesRepository};
 use ockam::identity::{Identifier, IdentitySecureChannelLocalInfo};
 use ockam_core::api::{Method, RequestHeader, Response};
 use ockam_core::compat::sync::Arc;
@@ -10,63 +7,58 @@ use ockam_core::{Result, Routed, Worker};
 use ockam_node::Context;
 use tracing::trace;
 
-use crate::authenticator::enrollment_tokens::EnrollmentTokenAuthenticator;
+use crate::authenticator::one_time_code::OneTimeCode;
+use crate::authenticator::{
+    secure_channel_required, AuthorityEnrollmentTokensRepository, AuthorityMember,
+    AuthorityMembersRepository,
+};
 
-pub struct EnrollmentTokenAcceptor(
-    pub(super) EnrollmentTokenAuthenticator,
-    pub(super) Arc<dyn IdentityAttributesRepository>,
-);
+pub struct EnrollmentTokenAcceptor {
+    pub(super) tokens: Arc<dyn AuthorityEnrollmentTokensRepository>,
+    pub(super) members: Arc<dyn AuthorityMembersRepository>,
+}
 
 impl EnrollmentTokenAcceptor {
+    pub fn new(
+        tokens: Arc<dyn AuthorityEnrollmentTokensRepository>,
+        members: Arc<dyn AuthorityMembersRepository>,
+    ) -> Self {
+        Self { tokens, members }
+    }
+
     async fn accept_token(
         &mut self,
         req: &RequestHeader,
         otc: OneTimeCode,
         from: &Identifier,
     ) -> Result<Vec<u8>> {
-        let token = {
-            let mut tokens = match self.0.tokens.write() {
-                Ok(tokens) => tokens,
-                Err(_) => {
-                    return Ok(Response::internal_error(
-                        req,
-                        "Failed to get read lock on tokens table",
-                    )
-                    .to_vec()?);
-                }
-            };
-
-            let token = if let Some(token) = tokens.remove(otc.code()) {
-                if token.created_at.elapsed() > token.ttl {
-                    return Ok(Response::forbidden(req, "expired token").to_vec()?);
-                } else {
-                    token
-                }
-            } else {
+        let token = match self.tokens.use_token(otc, now()?).await {
+            Ok(Some(token)) => token,
+            Ok(None) => {
                 return Ok(Response::forbidden(req, "unknown token").to_vec()?);
-            };
-
-            if token.ttl_count > 1 {
-                let mut token_clone = token.clone();
-                token_clone.ttl_count -= 1;
-                tokens.insert(*otc.code(), token_clone);
             }
-
-            token
+            Err(_) => {
+                return Ok(Response::forbidden(req, "unknown token").to_vec()?);
+            }
         };
 
         //TODO: fixme:  unify use of hashmap vs btreemap
-        let trust_context = self.0.trust_context.as_bytes().to_vec();
         let attrs = token
             .attrs
             .iter()
             .map(|(k, v)| (k.as_bytes().to_vec(), v.as_bytes().to_vec()))
-            .chain([(TRUST_CONTEXT_ID.to_owned(), trust_context)])
             .collect();
-        let entry =
-            AttributesEntry::new(attrs, now().unwrap(), None, Some(token.issued_by.clone()));
 
-        if let Err(_err) = self.1.put_attributes(from, entry).await {
+        let member = AuthorityMember::new(
+            from.clone(),
+            attrs,
+            Some(token.issued_by),
+            now()?,
+            None,
+            false,
+        );
+
+        if let Err(_err) = self.members.add_member(member).await {
             return Ok(Response::internal_error(req, "attributes storage error").to_vec()?);
         }
 

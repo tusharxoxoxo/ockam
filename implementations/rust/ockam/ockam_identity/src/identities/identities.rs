@@ -16,8 +16,8 @@ use crate::purpose_keys::storage::PurposeKeysSqlxDatabase;
 #[cfg(feature = "storage")]
 use crate::IdentitiesBuilder;
 use crate::{
-    Credentials, CredentialsServer, CredentialsServerModule, Identifier, IdentitiesCreation,
-    Identity, IdentityAttributesRepository, PurposeKeys, Vault,
+    Credentials, Identifier, IdentitiesCreation, Identity, IdentityAttributesRepository,
+    PurposeKeys, Vault,
 };
 
 /// This struct supports all the services related to identities
@@ -103,11 +103,6 @@ impl Identities {
             self.identities_creation().clone(),
             self.identity_attributes_repository.clone(),
         ))
-    }
-
-    /// Return the identities credentials server
-    pub fn credentials_server(&self) -> Arc<dyn CredentialsServer> {
-        Arc::new(CredentialsServerModule::new(self.credentials()))
     }
 }
 

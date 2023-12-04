@@ -11,7 +11,7 @@ use tokio::try_join;
 
 use crate::lease::authenticate;
 use crate::terminal::OckamColor;
-use crate::util::api::{CloudOpts, TrustContextOpts};
+use crate::util::api::{CloudOpts, TrustOpts};
 use crate::util::node_rpc;
 use crate::{docs, CommandGlobalOpts};
 use crate::{fmt_log, fmt_ok};
@@ -24,14 +24,14 @@ const HELP_DETAIL: &str = "";
 pub struct CreateCommand {}
 
 impl CreateCommand {
-    pub fn run(self, opts: CommandGlobalOpts, cloud_opts: CloudOpts, trust_opts: TrustContextOpts) {
+    pub fn run(self, opts: CommandGlobalOpts, cloud_opts: CloudOpts, trust_opts: TrustOpts) {
         node_rpc(run_impl, (opts, cloud_opts, trust_opts));
     }
 }
 
 async fn run_impl(
     ctx: Context,
-    (opts, cloud_opts, trust_opts): (CommandGlobalOpts, CloudOpts, TrustContextOpts),
+    (opts, cloud_opts, trust_opts): (CommandGlobalOpts, CloudOpts, TrustOpts),
 ) -> miette::Result<()> {
     opts.terminal
         .write_line(&fmt_log!("Creating influxdb token...\n"))?;

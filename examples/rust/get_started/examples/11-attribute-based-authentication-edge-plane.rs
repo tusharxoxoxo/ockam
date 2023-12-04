@@ -1,13 +1,13 @@
 use hello_ockam::{create_token, import_project};
 use ockam::abac::AbacAccessControl;
 use ockam::identity::{
-    identities, AuthorityService, RemoteCredentialsRetriever, RemoteCredentialsRetrieverInfo, SecureChannelOptions,
-    TrustContext, TrustMultiIdentifiersPolicy,
+    identities, RemoteCredentialsRetriever, RemoteCredentialsRetrieverInfo, SecureChannelOptions,
+    TrustMultiIdentifiersPolicy,
 };
-use ockam::identity::{CredentialsRetriever, OneTimeCode};
 use ockam::node;
 use ockam::{route, Context, Result};
 use ockam_api::authenticator::enrollment_tokens::TokenAcceptor;
+use ockam_api::authenticator::one_time_code::OneTimeCode;
 use ockam_api::nodes::NodeManager;
 use ockam_api::{multiaddr_to_route, DefaultAddress};
 use ockam_core::compat::sync::Arc;
@@ -83,32 +83,11 @@ async fn start_node(ctx: Context, project_information_path: &str, token: OneTime
             DefaultAddress::CREDENTIAL_ISSUER.into(),
         ),
     ));
-    let trust_context = TrustContext::new(
-        "trust_context_id".to_string(),
-        Some(AuthorityService::new(
-            node.credentials(),
-            project.authority_identifier(),
-            Some(credentials_retriever.clone()),
-        )),
-    );
-
-    let credential = credentials_retriever.retrieve(node.context(), &edge_plane).await?;
-
-    // start a credential exchange worker which will be
-    // later on to exchange credentials with the control node
-    node.credentials_server()
-        .start(
-            node.context(),
-            trust_context,
-            project.authority_identifier(),
-            "credential_exchange".into(),
-            true,
-        )
-        .await?;
 
     // 3. create an access control policy checking the value of the "component" attribute of the caller
     let access_control = AbacAccessControl::create(
         identities().await?.identity_attributes_repository(),
+        project.authority_identifier(),
         "component",
         "control",
     );
@@ -116,23 +95,16 @@ async fn start_node(ctx: Context, project_information_path: &str, token: OneTime
     // 4. create a tcp inlet with the above policy
 
     let tcp_project_route = multiaddr_to_route(&project.route(), &tcp).await.unwrap(); // FIXME: Handle error
-    let project_options =
-        SecureChannelOptions::new().with_trust_policy(TrustMultiIdentifiersPolicy::new(vec![project.identifier()]));
+    let project_options = SecureChannelOptions::new()
+        .with_credential_retriever(credentials_retriever)?
+        .with_authority(project.authority_identifier())
+        .with_trust_policy(TrustMultiIdentifiersPolicy::new(vec![project.identifier()]));
 
     // 4.1 first created a secure channel to the project
     let secure_channel_address = node
         .create_secure_channel(&edge_plane, tcp_project_route.route, project_options)
         .await?;
     println!("secure channel address to the project: {secure_channel_address:?}");
-
-    // 4.2 and send this node credential to the project
-    node.credentials_server()
-        .present_credential(
-            node.context(),
-            route![secure_channel_address.clone(), DefaultAddress::CREDENTIALS_SERVICE],
-            credential.clone(),
-        )
-        .await?;
 
     // 4.3 then create a secure channel to the control node (via its relay)
     let secure_channel_listener_route = route![secure_channel_address, "forward_to_control_plane1", "untrusted"];
@@ -146,18 +118,7 @@ async fn start_node(ctx: Context, project_information_path: &str, token: OneTime
 
     println!("secure channel address to the control node: {secure_channel_to_control:?}");
 
-    // 4.4 exchange credential with the control node
-    node.credentials_server()
-        .present_credential_mutual(
-            node.context(),
-            route![secure_channel_to_control.clone(), "credential_exchange"],
-            &[project.authority_identifier()],
-            credential,
-        )
-        .await?;
-    println!("credential exchange done");
-
-    // 4.5 create a TCP inlet connected to the TCP outlet on the control node
+    // 4.4 create a TCP inlet connected to the TCP outlet on the control node
     let outlet_route = route![secure_channel_to_control, "outlet"];
     let inlet = tcp
         .create_inlet(

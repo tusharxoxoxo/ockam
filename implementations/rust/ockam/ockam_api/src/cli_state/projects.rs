@@ -18,15 +18,7 @@ impl CliState {
             repository.set_default_project(&project.id).await?
         };
 
-        // create a corresponding trust context
-        self.create_trust_context(
-            Some(project.name()),
-            Some(project.id()),
-            None,
-            project.authority_identity().await.ok(),
-            project.authority_access_route().ok(),
-        )
-        .await?;
+        // FIXME
         Ok(())
     }
 

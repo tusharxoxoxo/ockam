@@ -12,11 +12,10 @@ use ockam_api::enroll::enrollment::Enrollment;
 use ockam_api::enroll::oidc_service::OidcService;
 use ockam_api::enroll::okta_oidc_provider::OktaOidcProvider;
 use ockam_api::nodes::InMemoryNode;
-use ockam_api::NamedTrustContext;
 
 use crate::enroll::OidcServiceExt;
 use crate::output::CredentialAndPurposeKeyDisplay;
-use crate::util::api::{CloudOpts, TrustContextOpts};
+use crate::util::api::{CloudOpts, TrustOpts};
 use crate::util::node_rpc;
 use crate::{docs, CommandGlobalOpts, Result};
 
@@ -40,12 +39,12 @@ pub struct EnrollCommand {
     pub cloud_opts: CloudOpts,
 
     #[command(flatten)]
-    pub trust_opts: TrustContextOpts,
+    pub trust_opts: TrustOpts,
 
-    /// Name of the new trust context to create, defaults to project name
-    #[arg(long)]
-    pub new_trust_context_name: Option<String>,
-
+    // FIXME
+    // /// Name of the new trust context to create, defaults to project name
+    // #[arg(long)]
+    // pub new_trust_context_name: Option<String>,
     /// Execute enrollment even if the trust context already exists
     #[arg(long)]
     pub force: bool,
@@ -80,16 +79,12 @@ async fn run_impl(
         .get_named_identity_or_default(&cmd.cloud_opts.identity)
         .await?;
     let project = parse_project(&opts, &cmd).await?;
-    let trust_context = parse_trust_context(&opts, &cmd, &project).await?;
 
     // Create secure channel to the project's authority node
-    let node = InMemoryNode::start_with_trust_context(
-        &ctx,
-        &opts.state,
-        cmd.trust_opts.project_name,
-        Some(trust_context),
-    )
-    .await?;
+    let node =
+        InMemoryNode::start_with_trust_context(&ctx, &opts.state, cmd.trust_opts.project_name)
+            .await?;
+
     let authority_node: AuthorityNode = node
         .create_authority_client(
             &project.authority_identifier().await.into_diagnostic()?,
@@ -148,40 +143,35 @@ async fn parse_project(opts: &CommandGlobalOpts, cmd: &EnrollCommand) -> Result<
             .await
             .context("A default project or project parameter is required.")?
     };
+
+    // FIXME
+    // let trust_context_name = if let Some(trust_context_name) = &cmd.new_trust_context_name {
+    //     trust_context_name
+    // } else {
+    //     &project.name
+    // };
+    //
+    // if !cmd.force {
+    //     if let Ok(trust_context) = opts.state.get_trust_context(trust_context_name).await {
+    //         if trust_context.trust_context_id() != project.id {
+    //             return Err(miette!(
+    //                 "A trust context with the name {} already exists and is associated with a different project. Please choose a different name.",
+    //                 trust_context_name
+    //             ).into());
+    //         }
+    //     }
+    // }
+    //
+    opts.state.store_project(project.clone()).await?;
+    // opts.state
+    //     .create_trust_context(
+    //         Some(trust_context_name.clone()),
+    //         Some(project.id()),
+    //         None,
+    //         project.authority_identity().await.ok(),
+    //         project.authority_access_route().ok(),
+    //     )
+    //     .await?;
+
     Ok(project)
-}
-
-async fn parse_trust_context(
-    opts: &CommandGlobalOpts,
-    cmd: &EnrollCommand,
-    project: &Project,
-) -> Result<NamedTrustContext> {
-    let trust_context_name = if let Some(trust_context_name) = &cmd.new_trust_context_name {
-        trust_context_name
-    } else {
-        &project.name
-    };
-
-    if !cmd.force {
-        if let Ok(trust_context) = opts.state.get_trust_context(trust_context_name).await {
-            if trust_context.trust_context_id() != project.id {
-                return Err(miette!(
-                    "A trust context with the name {} already exists and is associated with a different project. Please choose a different name.",
-                    trust_context_name
-                ).into());
-            }
-        }
-    }
-
-    let trust_context = opts
-        .state
-        .create_trust_context(
-            Some(trust_context_name.clone()),
-            Some(project.id()),
-            None,
-            project.authority_identity().await.ok(),
-            project.authority_access_route().ok(),
-        )
-        .await?;
-    Ok(trust_context)
 }

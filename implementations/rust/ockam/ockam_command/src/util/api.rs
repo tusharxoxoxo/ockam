@@ -8,8 +8,7 @@ use regex::Regex;
 use ockam::identity::Identifier;
 use ockam_api::nodes::models::flow_controls::AddConsumer;
 use ockam_api::nodes::models::services::{
-    StartAuthenticatedServiceRequest, StartAuthenticatorRequest, StartCredentialsService,
-    StartHopServiceRequest, StartOktaIdentityProviderRequest,
+    StartAuthenticatorRequest, StartHopServiceRequest, StartOktaIdentityProviderRequest,
 };
 use ockam_api::nodes::service::default_address::DefaultAddress;
 use ockam_api::nodes::*;
@@ -128,22 +127,6 @@ pub(crate) fn start_hop_service(addr: &str) -> Request<StartHopServiceRequest> {
     Request::post(node_service(DefaultAddress::HOP_SERVICE)).body(payload)
 }
 
-/// Construct a request to start an Authenticated Service
-pub(crate) fn start_authenticated_service(addr: &str) -> Request<StartAuthenticatedServiceRequest> {
-    let payload = StartAuthenticatedServiceRequest::new(addr);
-    Request::post(node_service(DefaultAddress::AUTHENTICATED_SERVICE)).body(payload)
-}
-
-/// Construct a request to start a Credential Service
-pub(crate) fn start_credentials_service(
-    public_identity: &str,
-    addr: &str,
-    oneway: bool,
-) -> Request<StartCredentialsService> {
-    let payload = StartCredentialsService::new(public_identity, addr, oneway);
-    Request::post(node_service(DefaultAddress::CREDENTIALS_SERVICE)).body(payload)
-}
-
 /// Construct a request to start an Authenticator Service
 pub(crate) fn start_authenticator_service(
     addr: &str,
@@ -198,20 +181,12 @@ pub struct CloudOpts {
 }
 
 #[derive(Clone, Debug, Args, Default)]
-pub struct TrustContextOpts {
-    /// Trust Context config file
-    #[arg(
-        global = true,
-        long,
-        value_name = "TRUST_CONTEXT_NAME | TRUST_CONTEXT_JSON_PATH"
-    )]
-    pub trust_context: Option<String>,
-
+pub struct TrustOpts {
     #[arg(global = true, long = "project", value_name = "PROJECT_NAME")]
     pub project_name: Option<String>,
 }
 
-impl TrustContextOpts {
+impl TrustOpts {
     pub fn project_name(&self) -> Option<String> {
         self.project_name.clone()
     }

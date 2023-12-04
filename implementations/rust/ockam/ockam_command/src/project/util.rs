@@ -79,7 +79,6 @@ pub async fn get_projects_secure_channels_from_config_lookup(
                 &project_access_route,
                 project_identity_id,
                 identity_name.clone(),
-                None,
                 timeout,
             )
             .await?;

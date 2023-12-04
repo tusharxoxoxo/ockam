@@ -1,28 +1,34 @@
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-
 use miette::IntoDiagnostic;
 use minicbor::Decoder;
+use std::collections::HashMap;
 use tracing::trace;
 
-use ockam::identity::OneTimeCode;
-use ockam::identity::{secure_channel_required, AttributesEntry};
+use ockam::identity::utils::now;
+use ockam::identity::AttributesEntry;
 use ockam::identity::{Identifier, IdentitySecureChannelLocalInfo};
 use ockam_core::api::{Method, Request, RequestHeader, Response};
-use ockam_core::errcode::{Kind, Origin};
+use ockam_core::compat::sync::Arc;
+use ockam_core::compat::time::Duration;
 use ockam_core::{async_trait, Result, Routed, Worker};
 use ockam_node::Context;
 
 use crate::authenticator::direct::types::{AddMember, CreateToken};
-use crate::authenticator::enrollment_tokens::authenticator::MAX_TOKEN_DURATION;
-use crate::authenticator::enrollment_tokens::types::Token;
-use crate::authenticator::enrollment_tokens::EnrollmentTokenAuthenticator;
+use crate::authenticator::one_time_code::OneTimeCode;
+use crate::authenticator::{secure_channel_required, AuthorityEnrollmentTokensRepository, Token};
 use crate::cloud::AuthorityNode;
 use crate::nodes::service::default_address::DefaultAddress;
 
-pub struct EnrollmentTokenIssuer(pub(super) EnrollmentTokenAuthenticator);
+pub(super) const MAX_TOKEN_DURATION: Duration = Duration::from_secs(600);
+
+pub struct EnrollmentTokenIssuer {
+    pub(super) tokens: Arc<dyn AuthorityEnrollmentTokensRepository>,
+}
 
 impl EnrollmentTokenIssuer {
+    pub fn new(tokens: Arc<dyn AuthorityEnrollmentTokensRepository>) -> Self {
+        Self { tokens }
+    }
+
     async fn issue_token(
         &self,
         enroller: &Identifier,
@@ -30,30 +36,21 @@ impl EnrollmentTokenIssuer {
         token_duration: Option<Duration>,
         ttl_count: Option<u64>,
     ) -> Result<OneTimeCode> {
-        let otc = OneTimeCode::new();
+        let one_time_code = OneTimeCode::new();
         let max_token_duration = token_duration.unwrap_or(MAX_TOKEN_DURATION);
         let ttl_count = ttl_count.unwrap_or(1);
+        let now = now()?;
         let tkn = Token {
-            attrs,
+            one_time_code: one_time_code.clone(),
             issued_by: enroller.clone(),
-            created_at: Instant::now(),
-            ttl: max_token_duration,
+            created_at: now,
+            expires_at: now + max_token_duration.as_secs(),
             ttl_count,
+            attrs,
         };
-        self.0
-            .tokens
-            .write()
-            .map(|mut r| {
-                r.insert(*otc.code(), tkn);
-                otc
-            })
-            .map_err(|_| {
-                ockam_core::Error::new(
-                    Origin::Other,
-                    Kind::Internal,
-                    "failed to get read lock on tokens table",
-                )
-            })
+        self.tokens.issue_token(tkn).await?;
+
+        Ok(one_time_code)
     }
 }
 
@@ -128,7 +125,8 @@ impl Members for AuthorityNode {
         identifier: Identifier,
         attributes: HashMap<&str, &str>,
     ) -> miette::Result<()> {
-        let req = Request::post("/").body(AddMember::new(identifier).with_attributes(attributes));
+        let req =
+            Request::post("/").body(AddMember::new(identifier, None).with_attributes(attributes));
         self.secure_client
             .tell(ctx, DefaultAddress::DIRECT_AUTHENTICATOR, req)
             .await

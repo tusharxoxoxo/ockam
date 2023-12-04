@@ -1,16 +1,14 @@
 use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
 
-use clap::ArgGroup;
 use clap::Args;
 use miette::{miette, IntoDiagnostic};
 use serde::{Deserialize, Serialize};
 
 use ockam::identity::{AttributesEntry, Identifier};
 use ockam::Context;
+use ockam_api::authenticator::PreTrustedIdentities;
 use ockam_api::authority_node;
 use ockam_api::authority_node::{OktaConfiguration, TrustedIdentity};
-use ockam_api::bootstrapped_identities_store::PreTrustedIdentities;
 use ockam_api::config::lookup::InternetAddress;
 use ockam_api::nodes::service::default_address::DefaultAddress;
 use ockam_core::compat::collections::HashMap;
@@ -33,15 +31,10 @@ long_about = docs::about(LONG_ABOUT),
 before_help = docs::before_help(PREVIEW_TAG),
 after_long_help = docs::after_help(AFTER_LONG_HELP),
 )]
-#[clap(group(ArgGroup::new("trusted").required(true).args(& ["trusted_identities", "reload_from_trusted_identities_file"])))]
 pub struct CreateCommand {
     /// Name of the node
     #[arg(default_value = "authority")]
     node_name: String,
-
-    /// Identifier of the project associated to this authority node on the Orchestrator
-    #[arg(long, value_name = "PROJECT_IDENTIFIER")]
-    project_identifier: String,
 
     /// TCP listener address
     #[arg(
@@ -70,13 +63,8 @@ pub struct CreateCommand {
 
     /// List of the trusted identities, and corresponding attributes to be preload in the attributes storage.
     /// Format: {"identifier1": {"attribute1": "value1", "attribute2": "value12"}, ...}
-    #[arg(group = "trusted", long, value_name = "JSON_OBJECT", value_parser = parse_trusted_identities)]
+    #[arg(long, value_name = "JSON_OBJECT", value_parser = parse_trusted_identities)]
     trusted_identities: Option<TrustedIdentities>,
-
-    /// Path of a file containing trusted identities and their attributes encoded as a JSON object.
-    /// Format: {"identifier1": {"attribute1": "value1", "attribute2": "value12"}, ...}
-    #[arg(group = "trusted", long, value_name = "PATH")]
-    reload_from_trusted_identities_file: Option<PathBuf>,
 
     /// Okta: URL used for accessing the Okta API
     #[arg(long, value_name = "URL", default_value = None)]
@@ -129,8 +117,6 @@ async fn spawn_background_node(
         },
         "authority".to_string(),
         "create".to_string(),
-        "--project-identifier".to_string(),
-        cmd.project_identifier.clone(),
         "--tcp-listener-address".to_string(),
         cmd.tcp_listener_address.to_string(),
         "--foreground".to_string(),
@@ -152,15 +138,6 @@ async fn spawn_background_node(
     if let Some(trusted_identities) = &cmd.trusted_identities {
         args.push("--trusted-identities".to_string());
         args.push(trusted_identities.to_string());
-    }
-
-    if let Some(reload_from_trusted_identities_file) = &cmd.reload_from_trusted_identities_file {
-        args.push("--reload-from-trusted-identities-file".to_string());
-        args.push(
-            reload_from_trusted_identities_file
-                .to_string_lossy()
-                .to_string(),
-        );
     }
 
     if let Some(tenant_base_url) = &cmd.tenant_base_url {
@@ -215,13 +192,10 @@ impl CreateCommand {
         &self,
         authority_identifier: &Identifier,
     ) -> Result<PreTrustedIdentities> {
-        match (
-            &self.reload_from_trusted_identities_file,
-            &self.trusted_identities,
-        ) {
-            (Some(path), None) => Ok(PreTrustedIdentities::ReloadFrom(path.clone())),
-            (None, Some(trusted)) => Ok(PreTrustedIdentities::Fixed(trusted.to_map(
-                self.project_identifier.to_string(),
+        match
+            &self.trusted_identities
+         {
+            Some(trusted) => Ok(PreTrustedIdentities::new_from_hashmap(trusted.to_map(
                 authority_identifier,
             ))),
             _ => Err(crate::Error::new(
@@ -291,7 +265,6 @@ async fn start_authority_node(
     let configuration = authority_node::Configuration {
         identifier: node.identifier(),
         database_path: opts.state.database_path(),
-        project_identifier: cmd.project_identifier,
         tcp_listener_address: cmd.tcp_listener_address,
         secure_channel_listener_name: None,
         authenticator_name: None,
@@ -329,17 +302,11 @@ mod tests {
         let identity1 = create_identity().await?;
         let identity2 = create_identity().await?;
 
-        let trusted = format!("{{\"{identity1}\": {{\"name\": \"value\", \"trust_context_id\": \"1\"}}, \"{identity2}\": {{\"trust_context_id\" : \"1\", \"ockam-role\" : \"enroller\"}}}}");
+        let trusted = format!("{{\"{identity1}\": {{\"name\": \"value\"}}, \"{identity2}\": {{\"ockam-role\" : \"enroller\"}}}}");
         let actual = parse_trusted_identities(trusted.as_str()).unwrap();
 
-        let attributes1 = HashMap::from([
-            ("name".into(), "value".into()),
-            ("trust_context_id".into(), "1".into()),
-        ]);
-        let attributes2 = HashMap::from([
-            ("trust_context_id".into(), "1".into()),
-            ("ockam-role".into(), "enroller".into()),
-        ]);
+        let attributes1 = HashMap::from([("name".into(), "value".into())]);
+        let attributes2 = HashMap::from([("ockam-role".into(), "enroller".into())]);
         let mut expected = vec![
             TrustedIdentity::new(&identity1, &attributes1),
             TrustedIdentity::new(&identity2, &attributes2),
@@ -377,15 +344,13 @@ impl TrustedIdentities {
     ///   - use the authority identifier an the attributes issuer
     pub(crate) fn to_map(
         &self,
-        project_identifier: String,
         authority_identifier: &Identifier,
     ) -> HashMap<Identifier, AttributesEntry> {
-        HashMap::from_iter(self.trusted_identities().iter().map(|t| {
-            (
-                t.identifier(),
-                t.attributes_entry(project_identifier.clone(), authority_identifier),
-            )
-        }))
+        HashMap::from_iter(
+            self.trusted_identities()
+                .iter()
+                .map(|t| (t.identifier(), t.attributes_entry(authority_identifier))),
+        )
     }
 }
 

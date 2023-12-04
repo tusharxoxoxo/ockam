@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
 
 use ockam::Context;
-use ockam_abac::expr::{eq, ident, str};
+use ockam_abac::expr::t;
 use ockam_abac::{Action, Policy, Resource};
 use ockam_api::nodes::models::policy::PolicyList;
 use ockam_api::nodes::BackgroundNode;
@@ -64,12 +64,11 @@ pub(crate) async fn add_default_project_policy(
     node_name: &str,
     ctx: &Context,
     opts: &CommandGlobalOpts,
-    project_id: String,
     resource: &Resource,
 ) -> miette::Result<()> {
     let node = BackgroundNode::create_to_node(ctx, &opts.state, node_name).await?;
 
-    let expr = eq([ident("subject.trust_context_id"), str(project_id)]);
+    let expr = t();
     let bdy = Policy::new(expr);
     let req = Request::post(policy_path(resource, &Action::new("handle_message"))).body(bdy);
 

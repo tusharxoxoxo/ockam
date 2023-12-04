@@ -1,5 +1,5 @@
 use minicbor::{Decode, Encode};
-use ockam::identity::Identifier;
+use ockam::identity::{Identifier, TimestampInSeconds};
 use ockam_core::CowStr;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -10,13 +10,15 @@ use std::time::Duration;
 pub struct AddMember<'a> {
     #[n(1)] member: Identifier,
     #[b(2)] attributes: HashMap<CowStr<'a>, CowStr<'a>>,
+    #[n(3)] expires_at: Option<TimestampInSeconds>
 }
 
 impl<'a> AddMember<'a> {
-    pub fn new(member: Identifier) -> Self {
+    pub fn new(member: Identifier, expires_at: Option<TimestampInSeconds>) -> Self {
         AddMember {
             member,
             attributes: HashMap::new(),
+            expires_at,
         }
     }
 
@@ -34,6 +36,10 @@ impl<'a> AddMember<'a> {
 
     pub fn attributes(&self) -> &HashMap<CowStr, CowStr> {
         &self.attributes
+    }
+
+    pub fn expires_at(&self) -> Option<TimestampInSeconds> {
+        self.expires_at
     }
 }
 

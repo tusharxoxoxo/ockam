@@ -1,5 +1,6 @@
 use crate::cli_state::CliState;
 use crate::cli_state::Result;
+use ockam::identity::Identifier;
 use ockam_abac::{Action, Env, Policy, PolicyAccessControl, Resource};
 
 impl CliState {
@@ -48,6 +49,7 @@ impl CliState {
         resource: &Resource,
         action: &Action,
         env: Env,
+        authority: Identifier,
     ) -> Result<PolicyAccessControl> {
         let policies = self.policies_repository().await?.clone();
         debug!(
@@ -58,6 +60,7 @@ impl CliState {
         Ok(PolicyAccessControl::new(
             policies,
             self.identity_attributes_repository().await?,
+            authority,
             resource.clone(),
             action.clone(),
             env,

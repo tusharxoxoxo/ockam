@@ -14,8 +14,8 @@ use crate::identity::models::Identifier;
 #[cfg(feature = "storage")]
 use crate::identity::secure_channels;
 use crate::identity::{
-    ChangeHistoryRepository, Credentials, CredentialsServer, Identities, IdentitiesCreation,
-    IdentitiesKeys, SecureChannel, SecureChannelListener, SecureChannelRegistry, SecureChannels,
+    ChangeHistoryRepository, Credentials, Identities, IdentitiesCreation, IdentitiesKeys,
+    SecureChannel, SecureChannelListener, SecureChannelRegistry, SecureChannels,
     SecureChannelsBuilder,
 };
 use crate::identity::{SecureChannelListenerOptions, SecureChannelOptions};
@@ -291,11 +291,6 @@ impl Node {
     /// Return the vault used by secure channels
     pub fn purpose_keys(&self) -> Arc<PurposeKeys> {
         self.secure_channels.identities().purpose_keys()
-    }
-
-    /// Return services to serve credentials
-    pub fn credentials_server(&self) -> Arc<dyn CredentialsServer> {
-        self.secure_channels.identities().credentials_server()
     }
 
     /// Return the repository used to store identities data

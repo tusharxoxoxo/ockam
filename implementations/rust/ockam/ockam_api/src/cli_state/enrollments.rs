@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
+use crate::authenticator::one_time_code::OneTimeCode;
 use ockam::identity::Identifier;
-use ockam::identity::OneTimeCode;
 
 use crate::cli_state::Result;
 use crate::cli_state::{CliState, CliStateError};

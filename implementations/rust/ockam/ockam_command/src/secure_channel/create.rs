@@ -113,12 +113,8 @@ async fn rpc(ctx: Context, (opts, cmd): (CommandGlobalOpts, CreateCommand)) -> m
             .state
             .get_identity_name_or_default(&cmd.cloud_opts.identity)
             .await?;
-        let payload = CreateSecureChannelRequest::new(
-            &to,
-            authorized_identifiers,
-            Some(identity_name),
-            cmd.credential.clone(),
-        );
+        let payload =
+            CreateSecureChannelRequest::new(&to, authorized_identifiers, Some(identity_name));
         let request = Request::post("/node/secure_channel").body(payload);
         let response: CreateSecureChannelResponse = node.ask(&ctx, request).await?;
         *is_finished.lock().await = true;

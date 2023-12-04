@@ -3,16 +3,15 @@ use ockam::identity::models::CredentialAndPurposeKey;
 use ockam::identity::utils::now;
 use ockam::identity::{identities, AttributesEntry};
 use ockam::identity::{
-    CredentialsIssuer, Identities, SecureChannelListenerOptions, SecureChannelOptions,
-    SecureChannels,
+    Identities, SecureChannelListenerOptions, SecureChannelOptions, SecureChannels,
 };
 use ockam::route;
-use ockam_api::bootstrapped_identities_store::{
-    BootstrapedIdentityAttributesStore, PreTrustedIdentities,
+use ockam_api::authenticator::credentials_issuer::CredentialsIssuer;
+use ockam_api::authenticator::{
+    AuthorityMembersRepository, AuthorityMembersSqlxDatabase, PreTrustedIdentities,
 };
 use ockam_core::api::Request;
 use ockam_core::compat::collections::{BTreeMap, HashMap};
-use ockam_core::compat::sync::Arc;
 use ockam_core::{Address, Result};
 use ockam_node::api::Client;
 use ockam_node::Context;
@@ -40,10 +39,11 @@ async fn credential(ctx: &mut Context) -> Result<()> {
         ),
     )]);
 
-    let bootstrapped = BootstrapedIdentityAttributesStore::new(
-        Arc::new(PreTrustedIdentities::from(pre_trusted)),
-        identities.identity_attributes_repository(),
-    );
+    let pre_trusted_identities = PreTrustedIdentities::new_from_hashmap(pre_trusted);
+    let members = AuthorityMembersSqlxDatabase::create().await?;
+    members
+        .bootstrap_pre_trusted_members(&pre_trusted_identities)
+        .await?;
 
     // Now recreate the identities services with the previous vault
     // (so that the authority can verify its signature)
@@ -51,7 +51,6 @@ async fn credential(ctx: &mut Context) -> Result<()> {
     let identities = Identities::builder()
         .await?
         .with_change_history_repository(identities.change_history_repository())
-        .with_identity_attributes_repository(Arc::new(bootstrapped))
         .with_vault(identities.vault())
         .with_purpose_keys_repository(identities.purpose_keys_repository())
         .build();
@@ -69,12 +68,7 @@ async fn credential(ctx: &mut Context) -> Result<()> {
         .await?;
     ctx.flow_controls()
         .add_consumer(auth_worker_addr.clone(), &sc_flow_control_id);
-    let auth = CredentialsIssuer::new(
-        identities.identity_attributes_repository(),
-        identities.credentials(),
-        &auth_identifier,
-        "project42".into(),
-    );
+    let auth = CredentialsIssuer::new(members, identities.credentials(), &auth_identifier);
     ctx.start_worker(auth_worker_addr.clone(), auth).await?;
 
     // Connect to the API channel from the member:
@@ -103,13 +97,6 @@ async fn credential(ctx: &mut Context) -> Result<()> {
         .credentials_verification()
         .verify_credential(Some(&imported), &[auth_identifier.clone()], &credential)
         .await?;
-    assert_eq!(
-        Some(&b"project42".to_vec().into()),
-        data.credential_data
-            .subject_attributes
-            .map
-            .get::<ByteSlice>(b"trust_context_id".as_slice().into())
-    );
     assert_eq!(
         Some(&b"value".to_vec().into()),
         data.credential_data

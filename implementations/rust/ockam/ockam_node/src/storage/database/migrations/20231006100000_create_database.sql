@@ -35,8 +35,10 @@ CREATE TABLE identity_attributes
     attributes  BLOB    NOT NULL, -- serialized list of attribute names and values for the identity
     added       INTEGER NOT NULL, -- UNIX timestamp in seconds: when those attributes were inserted in the database
     expires     INTEGER,          -- optional UNIX timestamp in seconds: when those attributes expire
-    attested_by TEXT              -- optional identifier which attested of these attributes
+    attested_by TEXT NOT NULL     -- optional identifier which attested of these attributes
 );
+
+CREATE INDEX identity_attributes_attested_by_index ON identity_attributes (identifier, attested_by);
 
 -- This table stores purpose keys that have been created by a given identity
 CREATE TABLE purpose_key

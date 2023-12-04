@@ -79,14 +79,6 @@ pub async fn spawn_background_node(
     opts: &CommandGlobalOpts,
     cmd: CreateCommand,
 ) -> miette::Result<()> {
-    let trust_context = match cmd.trust_context_opts.trust_context.clone() {
-        Some(tc) => {
-            let trust_context = opts.state.get_trust_context(&tc).await?;
-            Some(trust_context)
-        }
-        None => None,
-    };
-
     // Construct the arguments list and re-execute the ockam
     // CLI in foreground mode to start the newly created node
     info!("spawning a new node {}", &cmd.node_name);
@@ -96,15 +88,10 @@ pub async fn spawn_background_node(
         &cmd.identity,
         &cmd.vault,
         &cmd.tcp_listener_address,
-        cmd.trusted_identities.as_ref(),
-        cmd.trusted_identities_file.as_ref(),
-        cmd.reload_from_trusted_identities_file.as_ref(),
         cmd.launch_config
             .as_ref()
             .map(|config| serde_json::to_string(config).unwrap()),
-        cmd.credential.as_ref(),
-        trust_context.as_ref(),
-        cmd.trust_context_opts.project_name.clone(),
+        cmd.trust_opts.project_name.clone(),
         cmd.logging_to_file(),
     )
     .await?;

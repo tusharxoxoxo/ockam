@@ -3,7 +3,7 @@ use ockam::Context;
 use ockam_api::InfluxDbTokenLease;
 
 use crate::lease::authenticate;
-use crate::util::api::{CloudOpts, TrustContextOpts};
+use crate::util::api::{CloudOpts, TrustOpts};
 use crate::util::node_rpc;
 use crate::{docs, CommandGlobalOpts};
 
@@ -19,19 +19,14 @@ pub struct RevokeCommand {
 }
 
 impl RevokeCommand {
-    pub fn run(self, opts: CommandGlobalOpts, cloud_opts: CloudOpts, trust_opts: TrustContextOpts) {
+    pub fn run(self, opts: CommandGlobalOpts, cloud_opts: CloudOpts, trust_opts: TrustOpts) {
         node_rpc(run_impl, (opts, cloud_opts, self, trust_opts));
     }
 }
 
 async fn run_impl(
     ctx: Context,
-    (opts, cloud_opts, cmd, trust_opts): (
-        CommandGlobalOpts,
-        CloudOpts,
-        RevokeCommand,
-        TrustContextOpts,
-    ),
+    (opts, cloud_opts, cmd, trust_opts): (CommandGlobalOpts, CloudOpts, RevokeCommand, TrustOpts),
 ) -> miette::Result<()> {
     let project_node = authenticate(&ctx, &opts, &cloud_opts, &trust_opts).await?;
     project_node

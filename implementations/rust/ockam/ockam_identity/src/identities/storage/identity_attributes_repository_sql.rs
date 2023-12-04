@@ -35,9 +35,14 @@ impl IdentityAttributesSqlxDatabase {
 
 #[async_trait]
 impl IdentityAttributesRepository for IdentityAttributesSqlxDatabase {
-    async fn get_attributes(&self, identity: &Identifier) -> Result<Option<AttributesEntry>> {
-        let query = query_as("SELECT identifier, attributes, added, expires, attested_by FROM identity_attributes WHERE identifier=$1")
-            .bind(identity.to_sql());
+    async fn get_attributes(
+        &self,
+        identity: &Identifier,
+        attested_by: &Identifier,
+    ) -> Result<Option<AttributesEntry>> {
+        let query = query_as("SELECT identifier, attributes, added, expires, attested_by FROM identity_attributes WHERE identifier=$1 AND attested_by=$2")
+            .bind(identity.to_sql())
+            .bind(attested_by.to_sql());
         let identity_attributes: Option<IdentityAttributesRow> = query
             .fetch_optional(&self.database.pool)
             .await
@@ -141,7 +146,9 @@ mod tests {
             .put_attributes(&identifier2, attributes2.clone())
             .await?;
 
-        let result = repository.get_attributes(&identifier1).await?;
+        let result = repository
+            .get_attributes(&identifier1, &identifier1)
+            .await?;
         assert_eq!(result, Some(attributes1.clone()));
 
         let result = repository.list_attributes_by_identifier().await?;
@@ -155,7 +162,9 @@ mod tests {
 
         // delete attributes
         repository.delete(&identifier1).await?;
-        let result = repository.get_attributes(&identifier1).await?;
+        let result = repository
+            .get_attributes(&identifier1, &identifier1)
+            .await?;
         assert_eq!(result, None);
 
         Ok(())

@@ -1,10 +1,13 @@
 use ockam::access_control::AllowAll;
 use ockam::access_control::IdentityIdAccessControl;
 use ockam::identity::{AttributesEntry, SecureChannelListenerOptions};
-use ockam::identity::{CredentialsIssuer, Vault};
+use ockam::identity::{Identifier, Vault};
 use ockam::{Context, Result, TcpListenerOptions};
 use ockam::{Node, TcpTransportExtension};
+use ockam_api::authenticator::credentials_issuer::CredentialsIssuer;
+use ockam_api::authenticator::{AuthorityMembersRepository, AuthorityMembersSqlxDatabase, PreTrustedIdentities};
 use ockam_api::DefaultAddress;
+use ockam_core::compat::collections::HashMap;
 use ockam_vault::{EdDSACurve25519SecretKey, SigningSecret, SoftwareVaultForSigning};
 
 #[ockam::node]
@@ -33,9 +36,11 @@ async fn main(ctx: Context) -> Result<()> {
     // Tell the credential issuer about a set of public identifiers that are
     // known, in advance, to be members of the production cluster.
     let known_identifiers = vec![
-        "Ie70dc5545d64724880257acb32b8851e7dd1dd57076838991bc343165df71bfe".try_into()?, // Client Identifier
-        "Ife42b412ecdb7fda4421bd5046e33c1017671ce7a320c3342814f0b99df9ab60".try_into()?, // Server Identifier
+        Identifier::try_from("Ie70dc5545d64724880257acb32b8851e7dd1dd57076838991bc343165df71bfe")?, // Client Identifier
+        Identifier::try_from("Ife42b412ecdb7fda4421bd5046e33c1017671ce7a320c3342814f0b99df9ab60")?, // Server Identifier
     ];
+
+    let members = AuthorityMembersSqlxDatabase::create().await?;
 
     // Tell this credential issuer about the attributes to include in credentials
     // that will be issued to each of the above known_identifiers, after and only
@@ -47,20 +52,15 @@ async fn main(ctx: Context) -> Result<()> {
     //
     // For a different application this attested attribute set can be different and
     // distinct for each identifier, but for this example we'll keep things simple.
-    let credential_issuer = CredentialsIssuer::new(
-        node.identities().identity_attributes_repository(),
-        node.credentials(),
-        &issuer,
-        "trust_context".into(),
-    );
+    let credential_issuer = CredentialsIssuer::new(members.clone(), node.credentials(), &issuer);
 
+    let mut pre_trusted_identities = HashMap::<Identifier, AttributesEntry>::new();
     let attributes = AttributesEntry::single(b"cluster".to_vec(), b"production".to_vec(), None, None)?;
-    for identifier in known_identifiers.iter() {
-        node.identities()
-            .identity_attributes_repository()
-            .put_attributes(identifier, attributes.clone())
-            .await?;
+    for identifier in &known_identifiers {
+        pre_trusted_identities.insert(identifier.clone(), attributes.clone());
     }
+    let pre_trusted_identities = PreTrustedIdentities::new_from_hashmap(pre_trusted_identities);
+    members.bootstrap_pre_trusted_members(&pre_trusted_identities).await?;
 
     let tcp_listener_options = TcpListenerOptions::new();
     let sc_listener_options =

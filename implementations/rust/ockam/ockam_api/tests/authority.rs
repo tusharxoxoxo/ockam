@@ -2,9 +2,9 @@ use ockam::identity::utils::now;
 use ockam::identity::{secure_channels, AttributesEntry, Identifier, SecureChannels};
 use ockam::AsyncTryClone;
 use ockam_api::authenticator::enrollment_tokens::Members;
+use ockam_api::authenticator::PreTrustedIdentities;
 use ockam_api::authority_node;
 use ockam_api::authority_node::{Authority, Configuration};
-use ockam_api::bootstrapped_identities_store::PreTrustedIdentities;
 use ockam_api::cloud::AuthorityNode;
 use ockam_api::config::lookup::InternetAddress;
 use ockam_api::nodes::service::default_address::DefaultAddress;
@@ -162,11 +162,7 @@ async fn test_one_admin_one_member(ctx: &mut Context) -> Result<()> {
 
     let attrs = members.get(&member).unwrap();
 
-    assert_eq!(attrs.attrs().len(), 2);
-    assert_eq!(
-        attrs.attrs().get("trust_context_id".as_bytes()),
-        Some(&b"123456".to_vec())
-    );
+    assert_eq!(attrs.attrs().len(), 1);
     assert_eq!(
         attrs.attrs().get("key".as_bytes()),
         Some(&b"value".to_vec())
@@ -190,7 +186,6 @@ async fn test_one_admin_one_member(ctx: &mut Context) -> Result<()> {
     let members = admin.client.list_members(ctx).await.unwrap();
     assert_eq!(members.len(), 1);
     assert!(members.get(&admin.identifier).is_some());
-
     ctx.stop().await?;
 
     Ok(())
@@ -257,11 +252,7 @@ async fn two_admins_two_members_exist_in_one_global_scope(ctx: &mut Context) -> 
     assert!(members1.get(&admin1.identifier).is_some());
     assert!(members1.get(&admin2.identifier).is_some());
     let attrs = members1.get(&member1).unwrap();
-    assert_eq!(attrs.attrs().len(), 2);
-    assert_eq!(
-        attrs.attrs().get("trust_context_id".as_bytes()),
-        Some(&b"123456".to_vec())
-    );
+    assert_eq!(attrs.attrs().len(), 1);
     assert_eq!(
         attrs.attrs().get("key1".as_bytes()),
         Some(&b"value1".to_vec())
@@ -271,11 +262,7 @@ async fn two_admins_two_members_exist_in_one_global_scope(ctx: &mut Context) -> 
     assert_eq!(attrs.attested_by(), Some(admin1.identifier.clone()));
 
     let attrs = members1.get(&member2).unwrap();
-    assert_eq!(attrs.attrs().len(), 2);
-    assert_eq!(
-        attrs.attrs().get("trust_context_id".as_bytes()),
-        Some(&b"123456".to_vec())
-    );
+    assert_eq!(attrs.attrs().len(), 1);
     assert_eq!(
         attrs.attrs().get("key2".as_bytes()),
         Some(&b"value2".to_vec())
@@ -320,24 +307,18 @@ async fn two_admins_two_members_exist_in_one_global_scope(ctx: &mut Context) -> 
 // Default Configuration with fake TrustedIdentifier (which can be changed after the call),
 // with freshly created Authority Identifier and temporary files for storage and vault
 async fn default_configuration() -> Result<Configuration> {
-    let storage_path = NamedTempFile::new().unwrap().keep().unwrap().1;
+    let database_path = NamedTempFile::new().unwrap().keep().unwrap().1;
 
     let port = thread_rng().gen_range(10000..65535);
-
-    let trusted_identities =
-        "{\"I3bab350b6c9ad9c624e54dba4b2e53b2ed95967ba1b2c3d4e5f6a6b5c4d3e2f1\": {\"attribute1\": \"value1\"}}";
-
-    let trusted_identities = PreTrustedIdentities::new_from_string(trusted_identities)?;
 
     let mut configuration = authority_node::Configuration {
         identifier: "I4dba4b2e53b2ed95967b3bab350b6c9ad9c624e5a1b2c3d4e5f6a6b5c4d3e2f1"
             .try_into()?,
-        database_path: storage_path,
-        project_identifier: "123456".to_string(),
+        database_path,
         tcp_listener_address: InternetAddress::new(&format!("127.0.0.1:{}", port)).unwrap(),
         secure_channel_listener_name: None,
         authenticator_name: None,
-        trusted_identities,
+        trusted_identities: Default::default(),
         no_direct_authentication: true,
         no_token_enrollment: true,
         okta: None,
@@ -378,7 +359,6 @@ async fn setup(
 
     let mut attrs = BTreeMap::<Vec<u8>, Vec<u8>>::new();
     attrs.insert(b"ockam-role".to_vec(), b"enroller".to_vec());
-    attrs.insert(b"trust_context_id".to_vec(), b"123456".to_vec());
 
     for _ in 0..number_of_admins {
         let admin = secure_channels
@@ -397,7 +377,7 @@ async fn setup(
 
     configuration.no_direct_authentication = false;
 
-    configuration.trusted_identities = PreTrustedIdentities::Fixed(trusted_identities);
+    configuration.trusted_identities = PreTrustedIdentities::new_from_hashmap(trusted_identities);
 
     authority_node::start_node(ctx, &configuration).await?;
 

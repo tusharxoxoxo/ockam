@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 #[rustfmt::skip]
 #[cbor(map)]
 pub struct AttributesEntry {
-    // TODO: Check how it looks serialized with both serde and minicbor
     #[b(1)] attrs: BTreeMap<Vec<u8>, Vec<u8>>,
     #[n(2)] added: TimestampInSeconds,
     #[n(3)] expires: Option<TimestampInSeconds>,

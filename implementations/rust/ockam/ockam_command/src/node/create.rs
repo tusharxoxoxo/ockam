@@ -4,14 +4,13 @@ use clap::Args;
 use miette::Context as _;
 use miette::{miette, IntoDiagnostic};
 
-use ockam::identity::Identity;
 use ockam_api::cli_state::random_name;
 
 use crate::node::create::background::background_mode;
 use crate::node::create::foreground::foreground_mode;
 use crate::node::util::NodeManagerDefaults;
 use crate::service::config::Config;
-use crate::util::api::TrustContextOpts;
+use crate::util::api::TrustOpts;
 use crate::util::embedded_node_that_is_not_stopped;
 use crate::util::{local_cmd, node_rpc};
 use crate::{docs, CommandGlobalOpts, Result};
@@ -63,13 +62,6 @@ pub struct CreateCommand {
     #[arg(long, hide = true, value_parser = parse_launch_config)]
     pub launch_config: Option<Config>,
 
-    #[arg(long, group = "trusted")]
-    pub trusted_identities: Option<String>,
-    #[arg(long, group = "trusted")]
-    pub trusted_identities_file: Option<PathBuf>,
-    #[arg(long, group = "trusted")]
-    pub reload_from_trusted_identities_file: Option<PathBuf>,
-
     /// Name of the Vault that the node will use.
     #[arg(long = "vault", value_name = "VAULT_NAME")]
     vault: Option<String>,
@@ -82,11 +74,8 @@ pub struct CreateCommand {
     #[arg(long, value_name = "IDENTITY")]
     authority_identity: Option<String>,
 
-    #[arg(long = "credential", value_name = "CREDENTIAL_NAME")]
-    pub credential: Option<String>,
-
     #[command(flatten)]
-    pub trust_context_opts: TrustContextOpts,
+    pub trust_opts: TrustOpts,
 }
 
 impl Default for CreateCommand {
@@ -102,11 +91,7 @@ impl Default for CreateCommand {
             vault: None,
             identity: None,
             authority_identity: None,
-            trusted_identities: None,
-            trusted_identities_file: None,
-            reload_from_trusted_identities_file: None,
-            credential: None,
-            trust_context_opts: node_manager_defaults.trust_context_opts,
+            trust_opts: node_manager_defaults.trust_opts,
         }
     }
 }
@@ -120,13 +105,6 @@ impl CreateCommand {
             ));
         } else {
             node_rpc(background_mode, (opts, self))
-        }
-    }
-
-    async fn authority_identity(&self) -> Result<Option<Identity>> {
-        match &self.authority_identity {
-            Some(i) => Ok(Some(Identity::create(i).await.into_diagnostic()?)),
-            None => Ok(None),
         }
     }
 

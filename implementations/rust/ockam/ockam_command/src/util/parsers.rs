@@ -1,9 +1,7 @@
 use std::net::SocketAddr;
-use std::str::FromStr;
 
 use miette::miette;
 
-use ockam::identity::Identifier;
 use ockam_api::config::lookup::InternetAddress;
 use ockam_transport_tcp::resolve_peer;
 
@@ -24,12 +22,6 @@ pub(crate) fn socket_addr_parser(input: &str) -> Result<SocketAddr> {
     };
     Ok(resolve_peer(address.to_string())
         .map_err(|e| miette!("cannot parse the address {address} as a socket address: {e}"))?)
-}
-
-/// Helper fn for parsing an identifier from user input by using
-/// [`ockam_identity::Identifier::from_str()`]
-pub(crate) fn identity_identifier_parser(input: &str) -> Result<Identifier> {
-    Identifier::from_str(input).map_err(|_| miette!("Invalid identity identifier: {input}").into())
 }
 
 /// Helper fn for parsing an InternetAddress from user input by using

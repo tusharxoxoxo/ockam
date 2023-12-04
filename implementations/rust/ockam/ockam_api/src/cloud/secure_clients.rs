@@ -93,6 +93,7 @@ impl NodeManager {
         .await
     }
 
+    // TODO: Rename
     pub async fn controller_node(
         tcp_transport: &TcpTransport,
         secure_channels: Arc<SecureChannels>,
@@ -120,6 +121,7 @@ impl NodeManager {
         })
     }
 
+    // TODO: Rename
     pub async fn authority_node(
         tcp_transport: &TcpTransport,
         secure_channels: Arc<SecureChannels>,
@@ -148,6 +150,7 @@ impl NodeManager {
         })
     }
 
+    // TODO: Rename
     pub async fn project_node(
         tcp_transport: &TcpTransport,
         secure_channels: Arc<SecureChannels>,
@@ -240,11 +243,13 @@ impl NodeManager {
     }
 }
 
+// TODO: Rename
 pub struct AuthorityNode {
     pub(crate) secure_client: SecureClient,
     pub(crate) tcp_connection: Option<(TcpConnection, Context)>,
 }
 
+// TODO: Rename
 pub struct ProjectNode {
     pub(crate) secure_client: SecureClient,
     pub(crate) tcp_connection: Option<(TcpConnection, Context)>,

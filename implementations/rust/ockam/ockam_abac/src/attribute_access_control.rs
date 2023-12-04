@@ -24,6 +24,7 @@ use ockam_identity::{Identifier, IdentityAttributesRepository, IdentitySecureCha
 /// as [`crate::PoliciesRepository`] can be used to retrieve a specific policy for a given resource and action
 pub struct AbacAccessControl {
     identity_attributes_repository: Arc<dyn IdentityAttributesRepository>,
+    authority: Identifier,
     policy: Policy,
     environment: Env,
 }
@@ -40,11 +41,13 @@ impl AbacAccessControl {
     /// Create a new AccessControl using a specific policy for checking attributes
     pub fn new(
         identity_attributes_repository: Arc<dyn IdentityAttributesRepository>,
+        authority: Identifier,
         policy: Policy,
         environment: Env,
     ) -> Self {
         Self {
             identity_attributes_repository,
+            authority,
             policy,
             environment,
         }
@@ -54,10 +57,10 @@ impl AbacAccessControl {
     /// a message has an authenticated attribute with the correct name and value
     pub fn create(
         identity_attributes_repository: Arc<dyn IdentityAttributesRepository>,
+        authority: Identifier,
         attribute_name: &str,
         attribute_value: &str,
-    ) -> AbacAccessControl
-where {
+    ) -> AbacAccessControl {
         let expression = List(vec![
             Ident("=".into()),
             Ident(format!("subject.{attribute_name}")),
@@ -65,6 +68,7 @@ where {
         ]);
         AbacAccessControl::new(
             identity_attributes_repository,
+            authority,
             Policy::new(expression),
             Env::new(),
         )
@@ -79,7 +83,7 @@ impl AbacAccessControl {
         // Get identity attributes and populate the environment:
         if let Some(attrs) = self
             .identity_attributes_repository
-            .get_attributes(&id)
+            .get_attributes(&id, &self.authority)
             .await?
         {
             for (key, value) in attrs.attrs() {

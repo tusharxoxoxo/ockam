@@ -13,7 +13,7 @@ use ockam_api::cloud::project::Project;
 use ockam_api::nodes::InMemoryNode;
 use ockam_multiaddr::{proto, MultiAddr, Protocol};
 
-use crate::util::api::{CloudOpts, TrustContextOpts};
+use crate::util::api::{CloudOpts, TrustOpts};
 use crate::util::duration::duration_parser;
 use crate::util::node_rpc;
 use crate::{docs, CommandGlobalOpts, Result};
@@ -33,7 +33,7 @@ pub struct TicketCommand {
     cloud_opts: CloudOpts,
 
     #[command(flatten)]
-    trust_opts: TrustContextOpts,
+    trust_opts: TrustOpts,
 
     #[arg(long, short, conflicts_with = "expires_in")]
     member: Option<Identifier>,
@@ -84,49 +84,16 @@ async fn run_impl(
     ctx: Context,
     (opts, cmd): (CommandGlobalOpts, TicketCommand),
 ) -> miette::Result<()> {
-    let trust_context = opts
-        .state
-        .retrieve_trust_context(
-            &cmd.trust_opts.trust_context,
-            &cmd.trust_opts.project_name,
-            &None,
-            &None,
-        )
-        .await?;
     let node = InMemoryNode::start_with_trust_context(
         &ctx,
         &opts.state,
         cmd.trust_opts.project_name.clone(),
-        trust_context,
     )
     .await?;
 
-    let mut project: Option<Project> = None;
+    let project: Option<Project>;
 
-    let authority_node = if let Some(name) = cmd.trust_opts.trust_context.as_ref() {
-        let authority = if let Some(authority) = opts
-            .state
-            .get_trust_context(name)
-            .await?
-            .authority()
-            .await
-            .into_diagnostic()?
-        {
-            authority
-        } else {
-            return Err(miette!(
-                "Trust context must be configured with a credential issuer"
-            ));
-        };
-
-        let identity = opts
-            .state
-            .get_identity_name_or_default(&cmd.cloud_opts.identity)
-            .await?;
-
-        node.create_authority_client(&authority.identifier(), &authority.route(), Some(identity))
-            .await?
-    } else if let Some(p) = get_project(&opts.state, &cmd.to).await? {
+    let authority_node = if let Some(p) = get_project(&opts.state, &cmd.to).await? {
         let identity = opts
             .state
             .get_identity_name_or_default(&cmd.cloud_opts.identity)

@@ -14,7 +14,7 @@ use crate::secure_channel::Addresses;
 use crate::{
     DecryptionRequest, DecryptionResponse, Identities, IdentityError,
     IdentitySecureChannelLocalInfo, PlaintextPayloadMessage, RefreshCredentialsMessage,
-    SecureChannelMessage, TrustContext,
+    SecureChannelMessage,
 };
 
 use ockam_vault::{AeadSecretKeyHandle, VaultForSecureChannels};
@@ -28,7 +28,7 @@ pub(crate) struct DecryptorHandler {
     pub(crate) decryptor: Decryptor,
 
     identities: Arc<Identities>,
-    trust_context: Option<TrustContext>,
+    authority: Option<Identifier>,
     should_send_close: Arc<AtomicBool>,
 }
 
@@ -36,7 +36,7 @@ impl DecryptorHandler {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         identities: Arc<Identities>,
-        trust_context: Option<TrustContext>,
+        authority: Option<Identifier>,
         role: &'static str,
         addresses: Addresses,
         key: AeadSecretKeyHandle,
@@ -50,7 +50,7 @@ impl DecryptorHandler {
             their_identity_id,
             decryptor: Decryptor::new(key, vault),
             identities,
-            trust_context,
+            authority,
             should_send_close,
         }
     }
@@ -140,7 +140,7 @@ impl DecryptorHandler {
         CommonStateMachine::process_identity_payload_static(
             self.identities.clone(),
             None,
-            self.trust_context.clone(),
+            self.authority.clone(),
             Some(self.their_identity_id.clone()),
             msg.change_history,
             msg.credentials,

@@ -1,4 +1,4 @@
-use ockam_abac::expr::{eq, ident, str};
+use ockam_abac::expr::t;
 use ockam_abac::{Action, Policy, Resource};
 use ockam_core::api::{Error, Request, Response};
 use ockam_core::{async_trait, Result};
@@ -123,16 +123,6 @@ impl Policies for BackgroundNode {
         ctx: &Context,
         resource_name: &str,
     ) -> miette::Result<()> {
-        let project_id = match self
-            .cli_state()
-            .get_node_project(&self.node_name())
-            .await
-            .ok()
-        {
-            None => return Ok(()),
-            Some(p) => p.id,
-        };
-
         let resource = Resource::new(resource_name);
         let policies: PolicyList = self
             .ask(ctx, Request::get(format!("/policy/{resource}")))
@@ -142,7 +132,7 @@ impl Policies for BackgroundNode {
         }
 
         let policy = {
-            let expr = eq([ident("subject.trust_context_id"), str(project_id)]);
+            let expr = t();
             Policy::new(expr)
         };
         let action = Action::new("handle_message");

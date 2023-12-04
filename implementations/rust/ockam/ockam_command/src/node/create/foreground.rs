@@ -10,12 +10,9 @@ use ockam::{Address, AsyncTryClone, TcpListenerOptions};
 use ockam::{Context, TcpTransport};
 use ockam_api::nodes::service::NodeManagerTrustOptions;
 use ockam_api::nodes::InMemoryNode;
-use ockam_api::{
-    bootstrapped_identities_store::PreTrustedIdentities,
-    nodes::{
-        service::{NodeManagerGeneralOptions, NodeManagerTransportOptions},
-        NodeManagerWorker, NODEMANAGER_ADDR,
-    },
+use ockam_api::nodes::{
+    service::{NodeManagerGeneralOptions, NodeManagerTransportOptions},
+    NodeManagerWorker, NODEMANAGER_ADDR,
 };
 use ockam_core::api::{Request, ResponseHeader, Status};
 use ockam_core::{route, LOCAL};
@@ -64,30 +61,17 @@ pub(super) async fn foreground_mode(
         .start_node_with_optional_values(
             &node_name,
             &cmd.identity,
-            &cmd.trust_context_opts.project_name,
+            &cmd.trust_opts.project_name,
             Some(&listener),
         )
         .await?;
     debug!("created node {node_info:?}");
-
-    let named_trust_context = opts
-        .state
-        .retrieve_trust_context(
-            &cmd.trust_context_opts.trust_context,
-            &cmd.trust_context_opts.project_name,
-            &cmd.authority_identity().await?,
-            &cmd.credential,
-        )
-        .await?;
-
-    let pre_trusted_identities = load_pre_trusted_identities(&cmd)?;
 
     let node_man = InMemoryNode::new(
         &ctx,
         NodeManagerGeneralOptions::new(
             opts.state.clone(),
             node_name.clone(),
-            pre_trusted_identities,
             cmd.launch_config.is_none(),
             true,
         ),
@@ -95,7 +79,7 @@ pub(super) async fn foreground_mode(
             listener.flow_control_id().clone(),
             tcp.async_try_clone().await.into_diagnostic()?,
         ),
-        NodeManagerTrustOptions::new(named_trust_context),
+        NodeManagerTrustOptions::new(None, None), // FIXME
     )
     .await
     .into_diagnostic()?;
@@ -142,21 +126,6 @@ pub(super) async fn foreground_mode(
         .unwrap();
 
     Ok(())
-}
-
-pub fn load_pre_trusted_identities(cmd: &CreateCommand) -> Result<Option<PreTrustedIdentities>> {
-    let command = cmd.clone();
-    let pre_trusted_identities = match (
-        command.trusted_identities,
-        command.trusted_identities_file,
-        command.reload_from_trusted_identities_file,
-    ) {
-        (Some(val), _, _) => Some(PreTrustedIdentities::new_from_string(&val)?),
-        (_, Some(val), _) => Some(PreTrustedIdentities::new_from_disk(val, false)?),
-        (_, _, Some(val)) => Some(PreTrustedIdentities::new_from_disk(val, true)?),
-        _ => None,
-    };
-    Ok(pre_trusted_identities)
 }
 
 async fn start_services(ctx: &Context, cfg: &Config) -> miette::Result<()> {

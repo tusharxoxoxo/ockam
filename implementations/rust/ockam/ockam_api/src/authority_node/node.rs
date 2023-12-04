@@ -31,7 +31,7 @@ pub async fn start_node(ctx: &Context, configuration: &Configuration) -> Result<
     debug!("enrollment services started");
 
     authority
-        .start_credential_issuer(ctx, &secure_channel_flow_control_id, configuration)
+        .start_credential_issuer(ctx, &secure_channel_flow_control_id)
         .await?;
     debug!("credential issuer started");
 
