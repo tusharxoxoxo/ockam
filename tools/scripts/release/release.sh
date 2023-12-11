@@ -73,6 +73,30 @@ function approve_deployment() {
   done
 }
 
+function update_docs_repo() {
+  set -e
+  workflow_file_name="update_docs.yml"
+  release_tag="$1"
+  branch_name="metaclips/release_fix"
+
+  gh workflow run "$workflow_file_name" --ref main -F branch_name="$branch_name" -F ockam_ref="$release_tag" \
+    -R $owner/ockam-documentation
+  # Sleep for 10 seconds to ensure we are not affected by Github API downtime.
+  sleep 10
+
+  # Wait for workflow run
+  run_id=$(gh run list --workflow="$workflow_file_name" -b main -u "$GITHUB_USERNAME" -L 1 -R $owner/ockam-documentation --json databaseId | jq -r .[0].databaseId)
+
+  gh run watch "$run_id" --exit-status -R $owner/ockam-documentation
+
+  pr_length=$(gh pr list -H metaclips/release_fix -R metaclips/ockam-documentation --json title,url | jq '.|length')
+
+  if [[ $pr_length -eq 0 ]]; then
+    gh pr create --title "Ockam Release $(date +'%d-%m-%Y')" --body "Ockam release" \
+      --base main -H "${branch_name}" -r nazmulidris -R $owner/ockam-documentation
+  fi
+}
+
 function ockam_bump() {
   set -e
   gh workflow run create-release-pull-request.yml --ref develop -F branch_name="$release_name" -F git_tag="$GIT_TAG" -F ockam_bump_modified_release="$OCKAM_BUMP_MODIFIED_RELEASE" \
@@ -228,6 +252,12 @@ function success_info() {
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # Perform Ockam bump and binary draft release if specified
 if [[ $IS_DRAFT_RELEASE == true ]]; then
+  if [[ -z $SKIP_DOCS_UPDATE || $SKIP_DOCS_UPDATE == false ]]; then
+    echo "Updating ockam documentation repository"
+    update_docs_repo "aa47addb99167ab2339e04740e18037c2975632d"
+    success_info "Ockam documentation repository pull request created..."
+  fi
+
   if [[ -z $SKIP_OCKAM_BUMP || $SKIP_OCKAM_BUMP == false ]]; then
     echo "Starting Ockam crate bump"
     ockam_bump
