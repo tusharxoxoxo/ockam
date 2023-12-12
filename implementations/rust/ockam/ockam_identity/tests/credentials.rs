@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicI8, Ordering};
 use std::time::Duration;
+use tracing::warn;
 
 use ockam_core::compat::sync::Arc;
 use ockam_core::{async_trait, Any, DenyAll};
@@ -240,7 +241,7 @@ async fn access_control(ctx: &mut Context) -> Result<()> {
 
     ctx.send(route![channel1, "counter"], "Hello".to_string())
         .await?;
-    ctx.sleep(Duration::from_millis(500)).await;
+    ctx.sleep(Duration::from_millis(100)).await;
     assert_eq!(counter.load(Ordering::Relaxed), 1);
 
     ctx.stop().await
@@ -260,6 +261,7 @@ impl Worker for CountingWorker {
         _context: &mut Self::Context,
         _msg: Routed<Self::Message>,
     ) -> Result<()> {
+        warn!("CountingWorker received a message");
         let _ = self.msgs_count.fetch_add(1, Ordering::Relaxed);
 
         Ok(())
