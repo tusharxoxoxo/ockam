@@ -33,7 +33,7 @@ async fn full_flow_oneway(ctx: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("is_superuser", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
 
@@ -91,7 +91,7 @@ async fn full_flow_twoway(ctx: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("is_admin", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
 
@@ -114,7 +114,7 @@ async fn full_flow_twoway(ctx: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("is_user", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
 
@@ -185,7 +185,7 @@ async fn access_control(ctx: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("is_superuser", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
     let channel1 = secure_channels

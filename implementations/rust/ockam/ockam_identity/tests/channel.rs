@@ -100,7 +100,7 @@ async fn test_channel_send_credentials(context: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("is_bob", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
 
@@ -114,7 +114,7 @@ async fn test_channel_send_credentials(context: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("bob_2", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
 
@@ -139,7 +139,7 @@ async fn test_channel_send_credentials(context: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("is_alice", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
 
@@ -153,7 +153,7 @@ async fn test_channel_send_credentials(context: &mut Context) -> Result<()> {
             AttributesBuilder::with_schema(CredentialSchemaIdentifier(0))
                 .with_attribute("alice_2", "true")
                 .build(),
-            Duration::from_secs(60),
+            Duration::from_secs(60 * 60),
         )
         .await?;
 
