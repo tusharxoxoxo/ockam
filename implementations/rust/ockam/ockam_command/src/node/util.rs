@@ -58,7 +58,6 @@ pub async fn spawn_node(
     opts: &CommandGlobalOpts,
     name: &str,
     identity_name: &Option<String>,
-    vault_name: &Option<String>,
     address: &str,
     trusted_identities: Option<&String>,
     trusted_identities_file: Option<&PathBuf>,
@@ -89,11 +88,6 @@ pub async fn spawn_node(
     if let Some(identity_name) = identity_name {
         args.push("--identity".to_string());
         args.push(identity_name.to_string());
-    }
-
-    if let Some(vault_name) = vault_name {
-        args.push("--vault".to_string());
-        args.push(vault_name.to_string());
     }
 
     if let Some(l) = launch_config {
